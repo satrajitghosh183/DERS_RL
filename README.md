@@ -50,13 +50,17 @@ corpus sample (anti-forgetting), and continues DoRA SFT **on the Mac (MPS)** →
 flywheel then serves. The more it's used, the better it gets.
 
 ```bash
-# pull the 3B working set (base + adapter) from Box, then run + retrain — all local, no GPU server:
+# base = stock HF (re-downloadable); the trained adapter lives in Box:
+huggingface-cli download Qwen/Qwen2.5-Coder-3B --local-dir local/qwen2.5-coder-3b
+rclone copy box:nerc_server/adapters/rl3b_refined local/rl3b_refined   # the debugger-RL adapter (118 MiB)
+export FLY_BASE=local/qwen2.5-coder-3b FLY_ADAPTER=local/rl3b_refined
+
 python3 tools/cli/flywheel.py "neon city street at night" -n 8 --open   # generate, rerank, render, log
 python3 tools/cli/retrain_local.py --min-score 1.4                       # retrain from accumulated logs
 ```
-Model working-set (base `qwen2.5-coder-3b` + the `rl3b_refined` adapter) lives in Box; set `FLY_BASE`
-and `FLY_ADAPTER` to wherever you pulled it. The C++ debugger (`build/omni_reward`, `build/omni_render`)
-is the labeler and runs on Apple Silicon via MoltenVK.
+The base `qwen2.5-coder-3b` is stock HF; the trained `rl3b_refined` adapter (and the 4-bit GGUF/MLX
+deliverables) persist in Box. The C++ debugger (`build/omni_reward`, `build/omni_render`) is the labeler
+and runs on Apple Silicon via MoltenVK — the whole flywheel needs no GPU server.
 
 ## Build
 ```bash
