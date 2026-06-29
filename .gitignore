@@ -1,0 +1,9 @@
+build/
+*.o
+*.ppm
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+*.glb
+trained_models/

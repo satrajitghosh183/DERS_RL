@@ -1,0 +1,40 @@
+{"prompt": "minimal wood grain with ray-sphere intersection"}
+{"prompt": "pastel concentric ripples using fbm noise"}
+{"prompt": "dreamy a rotating tunnel using signed distance fields"}
+{"prompt": "retro 80s smoke plumes with simplex-style noise"}
+{"prompt": "glowing neon a raymarched sphere with simple 2D math"}
+{"prompt": "watercolor domain-warped fbm noise using analytic derivatives for lighting"}
+{"prompt": "watercolor a raymarched sphere using value noise"}
+{"prompt": "watercolor wood grain with a distance-field metric"}
+{"prompt": "iridescent raymarched terrain using signed distance fields"}
+{"prompt": "watercolor a mandelbrot fractal using domain warping"}
+{"prompt": "psychedelic a neon grid using signed distance fields"}
+{"prompt": "monochrome a flickering candle using raymarching"}
+{"prompt": "pastel a swirling galaxy using raymarching"}
+{"prompt": "iridescent a rotating tunnel using value noise"}
+{"prompt": "glowing neon underwater caustics with simplex-style noise"}
+{"prompt": "glowing neon rippling water using raymarching"}
+{"prompt": "dreamy a spinning vinyl record using fbm noise"}
+{"prompt": "iridescent a sunset sky gradient using value noise"}
+{"prompt": "cel-shaded northern stars with ray-sphere intersection"}
+{"prompt": "psychedelic a melting blob using analytic derivatives for lighting"}
+{"prompt": "cyberpunk soft shadows on a sphere using signed distance fields"}
+{"prompt": "retro 80s a raymarched sphere with simple 2D math"}
+{"prompt": "photorealistic marble texture using value noise"}
+{"prompt": "watercolor a flickering candle with simplex-style noise"}
+{"prompt": "minimal falling rain with simplex-style noise"}
+{"prompt": "vibrant a spiral vortex with simplex-style noise"}
+{"prompt": "watercolor a voronoi cell pattern using fbm noise"}
+{"prompt": "high-contrast digital matrix rain with a distance-field metric"}
+{"prompt": "dark and moody drifting noise clouds using fbm noise"}
+{"prompt": "retro 80s drifting noise clouds using analytic derivatives for lighting"}
+{"prompt": "psychedelic a clockwork of gears using domain warping"}
+{"prompt": "dark and moody underwater caustics using polar coordinates"}
+{"prompt": "vibrant stained glass using value noise"}
+{"prompt": "dark and moody truchet tiles using raymarching"}
+{"prompt": "retro 80s an aurora borealis using signed distance fields"}
+{"prompt": "pastel a pulsing heart using raymarching"}
+{"prompt": "psychedelic northern stars with simple 2D math"}
+{"prompt": "photorealistic a hexagon grid using analytic derivatives for lighting"}
+{"prompt": "iridescent a kaleidoscope with simple 2D math"}
+{"prompt": "psychedelic a glass refraction using domain warping"}

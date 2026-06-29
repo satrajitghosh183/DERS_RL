@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""
+omnishader — a CLI for the OmniTrace shader debugger + the debugger-in-the-loop generator.
+
+  omnishader debug <file.frag>     run OmniTrace on a shader (compile + execute + diagnose)
+  omnishader gen "<prompt>" [-o f] generate a shader (7B debugger-RL deliver@400, on the GPU box)
+  omnishader loop "<prompt>"       generate -> debug, the whole pipeline in one shot
+  omnishader eval <dir>            compile@k over a directory of shaders
+
+The debugger (omni_reward) runs LOCALLY — it's the C++ contribution, built from this repo.
+Generation runs on the GPU box over ssh (set OMNISHADER_BOX / OMNISHADER_KEY to point at it).
+"""
+import argparse, json, os, re, subprocess, sys, tempfile
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
+OMNI = os.path.join(ROOT, "build", "omni_reward")
+RENDER = os.path.join(ROOT, "build", "omni_render")
+BOX  = os.environ.get("OMNISHADER_BOX", "exouser@149.165.174.207")
+KEY  = os.environ.get("OMNISHADER_KEY", os.path.expanduser("~/.ssh/id_nerc_box"))
+GEN  = os.environ.get("OMNISHADER_GEN", "~/shader_pipeline/gen_deliver.py")  # 7B + debugger-RL deliver@400
+
+# ---- ANSI ----------------------------------------------------------------
+class C:
+    g="\033[32m"; r="\033[31m"; y="\033[33m"; b="\033[34m"; c="\033[36m"; d="\033[2m"; bd="\033[1m"; x="\033[0m"
+def ok(s):  return f"{C.g}{s}{C.x}"
+def bad(s): return f"{C.r}{s}{C.x}"
+
+HARNESS = ("#version 450\nlayout(location=0) out vec4 _O;\n"
+           "layout(push_constant) uniform U { vec3 iResolution; float iTime; vec4 iMouse; int iFrame; } u;\n"
+           "#define iResolution u.iResolution\n#define iTime u.iTime\n#define iMouse u.iMouse\n#define iFrame u.iFrame\n")
+
+def wrap(code):
+    """Make a complete fragment shader from a Shadertoy mainImage snippet."""
+    if "void main(" in code and "#version" in code:
+        return code
+    if "mainImage" in code:
+        return HARNESS + code + "\nvoid main(){ vec4 c=vec4(0.); mainImage(c, gl_FragCoord.xy); _O=c; }\n"
+    return HARNESS + "void main(){ vec2 fragCoord=gl_FragCoord.xy; vec2 uv=fragCoord/iResolution.xy; vec3 col=vec3(0.);\n" + code + "\n_O=vec4(col,1.); }\n"
+
+def run_debugger(glsl):
+    if not os.path.exists(OMNI):
+        sys.exit(f"{bad('omni_reward not built')} — run: cmake -S . -B build && cmake --build build --target omni_reward")
+    p = subprocess.run([OMNI], input=glsl, capture_output=True, text=True, errors="replace", timeout=60)
+    return json.loads(p.stdout.strip().splitlines()[-1])
+
+def render(code, size=512, t=1.5, show=True):
+    """Render a mainImage shader to a PNG on the local GPU (MoltenVK) and open it."""
+    if not os.path.exists(RENDER):
+        print(f"  {C.y}(omni_render not built — cmake --build build --target omni_render){C.x}"); return None
+    f = tempfile.NamedTemporaryFile(suffix=".frag", delete=False, mode="w"); f.write(code); f.close()
+    ppm = f.name + ".ppm"; png = f.name + ".png"
+    r = subprocess.run([RENDER, f.name, ppm, str(size), str(size), str(t)], capture_output=True, text=True, timeout=60)
+    if r.returncode != 0 or not os.path.exists(ppm):
+        print(f"  {C.y}render: {r.stdout.strip() or r.stderr.strip()}{C.x}"); return None
+    subprocess.run(["sips", "-s", "format", "png", ppm, "--out", png], capture_output=True)
+    print(f"  {C.c}rendered → {png}{C.x}  {C.d}({r.stdout.strip()}){C.x}")
+    if show: subprocess.run(["open", png])
+    return png
+
+def report(j, title):
+    line = lambda k, v: print(f"  {C.d}{k:<14}{C.x}{v}")
+    print(f"\n{C.bd}╭─ OmniTrace ── {title} {C.x}")
+    line("compile", ok("✓ passed") if j["compiled"] else bad("✗ failed"))
+    if j["compiled"]:
+        line("lift → UIR", ok("✓") if j.get("lifted") else f"{C.y}— (not lifted){C.x}")
+        if j.get("executed"):
+            line("execute", ok(f"✓ ran finite  ({j.get('exec_samples',0)} samples)"))
+        else:
+            why = "NaN/Inf detected" if not j.get("all_finite") else "interpreter could not run it"
+            line("execute", bad(f"✗ {why}"))
+    rew = j.get("reward", 0.0)
+    col = C.g if rew >= 3.0 else (C.y if rew >= 1.0 else C.r)
+    line("reward", f"{col}{C.bd}{rew:.2f}{C.x}  {C.d}(compile {j['breakdown']['compile']:.0f} · exec {j['breakdown']['exec']:.1f} · visual {j['breakdown']['visual']:.1f}){C.x}")
+    if not j["compiled"] and j.get("compile_log"):
+        first = next((l for l in j["compile_log"].splitlines() if "ERROR" in l), "")
+        if first: print(f"  {C.r}{first.strip()[:90]}{C.x}")
+    print(f"{C.bd}╰────────────────────────────────────────────{C.x}")
+    return rew
+
+SEP = "@@@OMNI_CANDIDATE@@@"
+
+def _clean(s):
+    return "\n".join(l for l in s.splitlines() if not l.startswith(("Loading", "You:"))).strip()
+
+def _gen_raw(prompt, n, backend, adapter, repair_req=None):
+    if backend == "box":
+        if repair_req:
+            inner = f"python3 {GEN} --repair"
+            p = subprocess.run(["ssh", "-i", KEY, "-o", "BatchMode=yes", "-o", "ConnectTimeout=20", BOX, inner],
+                               input=json.dumps(repair_req), capture_output=True, text=True, errors="replace", timeout=600)
+        else:
+            inner = f"python3 {GEN} {json.dumps(prompt)} --n {n}" + (f" --adapter {adapter}" if adapter else "")
+            p = subprocess.run(["ssh", "-i", KEY, "-o", "BatchMode=yes", "-o", "ConnectTimeout=20", BOX, inner],
+                               capture_output=True, text=True, errors="replace", timeout=600)
+    else:
+        gl = os.path.join(ROOT, "tools", "cli", "gen_local.py")
+        if not os.path.isdir(os.path.join(ROOT, "trained_models", "base_qwen3b")):
+            sys.exit(bad("local base model not present — use --backend box, or restore trained_models/base_qwen3b"))
+        p = subprocess.run(["python3", gl, prompt, "", adapter or ""], capture_output=True, text=True, errors="replace", timeout=600)
+    return p.stdout, p.stderr
+
+def gen_candidates(prompt, n, backend, adapter):
+    out, err = _gen_raw(prompt, n, backend, adapter)
+    cands = [c for c in (_clean(x) for x in out.split(SEP)) if c]
+    if not cands:
+        sys.exit(bad(f"generation failed: {(err or out).strip()[-300:]}"))
+    return cands
+
+def best_of_n(prompt, n=6, backend="box", adapter=None, repair_rounds=1, quiet=False):
+    """Debugger-in-the-loop *inference*: generate N candidates, score each with the LOCAL OmniTrace
+    reward (compile + run + render), keep the best; if it doesn't run clean, feed the diagnostic
+    back and repair. Lifts usable success from compile@1 toward compile@k, no retraining."""
+    where = "box 7B deliver@400" if backend == "box" else "local 3B"
+    if not quiet: print(f"{C.d}generating {n} candidates ({where}) → scoring with OmniTrace…{C.x}", file=sys.stderr)
+    scored = [(c, run_debugger(wrap(c))) for c in gen_candidates(prompt, n, backend, adapter)]
+    best_code, best_j = max(scored, key=lambda cj: cj[1].get("reward", 0.0))
+    if not quiet:
+        rs = sorted((round(j.get("reward", 0), 1) for _, j in scored), reverse=True)
+        print(f"{C.d}  best of {len(scored)}: reward {best_j.get('reward',0):.2f}  (all: {rs}){C.x}", file=sys.stderr)
+    r = 0
+    while best_j.get("reward", 0.0) < 3.5 and r < repair_rounds and backend == "box":
+        r += 1
+        err = best_j.get("compile_log", "") or ("NaN/Inf at runtime" if best_j.get("compiled") else "compile error")
+        if not quiet: print(f"{C.d}  repair {r}: feeding the debugger diagnostic back…{C.x}", file=sys.stderr)
+        out, _ = _gen_raw(prompt, 1, backend, adapter, repair_req={"prompt": prompt, "code": best_code, "error": err[:300]})
+        fixed = _clean(out.split(SEP)[0])
+        if fixed:
+            j = run_debugger(wrap(fixed))
+            if j.get("reward", 0.0) > best_j.get("reward", 0.0):
+                best_code, best_j = fixed, j
+                if not quiet: print(f"{C.d}  → repaired to reward {j.get('reward',0):.2f}{C.x}", file=sys.stderr)
+    return best_code, best_j
+
+def generate(prompt, adapter=None, backend="box", n=1):
+    return best_of_n(prompt, n=n, backend=backend, adapter=adapter, quiet=(n == 1))[0]
+
+def to_mainimage(code):
+    """Strip a wrapping harness so omni_render gets a clean mainImage + helpers."""
+    drop = ("#version", "layout(", "uniform ", "#define iResolution", "#define iTime",
+            "#define iMouse", "#define iFrame", "#define iTimeDelta")
+    keep = [ln for ln in code.splitlines() if not ln.strip().startswith(drop) and "push_constant" not in ln]
+    return "\n".join(keep)
+
+# ---- commands ------------------------------------------------------------
+def cmd_debug(a):
+    src = open(a.file, errors="replace").read()
+    j = report(run_debugger(wrap(src)), os.path.basename(a.file))
+    if j and not a.no_render:
+        render(to_mainimage(src), t=a.time)
+
+def cmd_render(a):
+    src = open(a.file, errors="replace").read()
+    render(to_mainimage(src), size=a.size, t=a.time)
+
+def cmd_gen(a):
+    code, _ = best_of_n(a.prompt, n=a.n, backend=a.backend, adapter=a.adapter)
+    if a.out:
+        open(a.out, "w").write(code); print(f"{ok('saved')} → {a.out}")
+    else:
+        print(code)
+
+def cmd_loop(a):
+    code, j = best_of_n(a.prompt, n=a.n, backend=a.backend, adapter=a.adapter)
+    print(f"\n{C.c}{C.bd}── generated shader (best of {a.n}) ──{C.x}")
+    print(C.d + code[:600] + ("…" if len(code) > 600 else "") + C.x)
+    rew = report(j, f'"{a.prompt}"')
+    verdict = ok("it compiles and runs") if rew >= 3.0 else (f"{C.y}compiles but doesn't run clean{C.x}" if rew >= 1.0 else bad("broken"))
+    print(f"\n  {C.bd}verdict:{C.x} {verdict}")
+    if rew >= 1.0 and not a.no_render:
+        render(code, t=a.time)
+    if a.out:
+        open(a.out, "w").write(code); print(f"  {C.d}saved → {a.out}{C.x}")
+
+def cmd_eval(a):
+    import glob
+    files = [f for f in glob.glob(os.path.join(a.dir, "*")) if os.path.isfile(f)]
+    n = ok_n = 0
+    for f in files:
+        j = run_debugger(wrap(open(f, errors="replace").read())); n += 1; ok_n += int(j["compiled"])
+    print(f"compile@1 = {ok_n}/{n} = {ok_n/max(n,1):.3f}")
+
+def main():
+    ap = argparse.ArgumentParser(prog="omnishader", description="OmniTrace shader debugger + generator")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    d = sub.add_parser("debug"); d.add_argument("file"); d.add_argument("--no-render", action="store_true"); d.add_argument("--time", type=float, default=1.5); d.set_defaults(fn=cmd_debug)
+    rn = sub.add_parser("render"); rn.add_argument("file"); rn.add_argument("--size", type=int, default=512); rn.add_argument("--time", type=float, default=1.5); rn.set_defaults(fn=cmd_render)
+    g = sub.add_parser("gen"); g.add_argument("prompt"); g.add_argument("-o", "--out"); g.add_argument("--adapter"); g.add_argument("-n", "--n", type=int, default=6); g.add_argument("--backend", choices=["local", "box"], default="box"); g.set_defaults(fn=cmd_gen)
+    l = sub.add_parser("loop"); l.add_argument("prompt"); l.add_argument("-o", "--out"); l.add_argument("--adapter"); l.add_argument("-n", "--n", type=int, default=6); l.add_argument("--backend", choices=["local", "box"], default="box"); l.add_argument("--no-render", action="store_true"); l.add_argument("--time", type=float, default=1.5); l.set_defaults(fn=cmd_loop)
+    e = sub.add_parser("eval"); e.add_argument("dir"); e.set_defaults(fn=cmd_eval)
+    a = ap.parse_args(); a.fn(a)
+
+if __name__ == "__main__":
+    main()
