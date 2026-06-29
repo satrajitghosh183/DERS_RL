@@ -33,3 +33,13 @@ cmake -S . -B build -G Ninja && cmake --build build && (cd build && ctest)
 The C++ LLM trainer in `training/` builds separately (see `training/README.md`).
 
 Authors: **Satrajit Ghosh**, **Dov Kruger**.
+
+## Figures
+![Gallery — debugger-verified shaders](figures/gallery_poster.png)
+*Debugger-verified shaders (best-of-6, every one compiles + renders), from the deliverable model.*
+
+The thesis figure (a compiler is blind to broken shaders) — all three compile, only the debugger
+reward tells them apart:
+| `figures/thesis_good.png` | `figures/thesis_nan_compiles_but_broken.png` | `figures/thesis_flat_compiles_but_broken.png` |
+|---|---|---|
+| real image (reward 5.43) | NaN → blank frame (reward 2.50, exec=0) | flat/degenerate (reward 3.50, vis=0) |
