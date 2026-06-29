@@ -28,6 +28,36 @@ semantic-match) that beats compile-only RLVR, and runs locally on a laptop.
 - Best-of-N + debugger at inference: compile@1 0.85 → **0.988 usable@1**
 - Deliverable runs **fully local** (4-bit, ~4 GB) on any laptop; debugger runs on Apple Silicon (MoltenVK)
 
+## Flywheel — local, self-improving, no server
+The richer debugger reward also runs at **inference time** to fight reward-hacking. Best-of-N alone
+collapses toward whatever maxes raw luminance variance — concentric grayscale rings — because a ring is
+the cheapest way to spike variance. `tools/cli/flywheel.py` re-ranks the N candidates by a reward that
+rewards **color** (chroma), **caps** structure (no variance-hacking), and **penalizes radial symmetry**
+(rings are rotation-invariant → low MSE vs a 90°-rotated copy), plus optional CLIP semantic match:
+
+```
+score = 0.45·color + 0.25·min(structure,cap) − 0.30·radial + 0.50·clip   (must compile + run, else −1)
+```
+
+Measured on a real best-of-6 (Apple M-series, 3B+adapter on MPS): a grayscale ring with **44× more
+variance** scores **0.95**; the colorful, non-radial winner scores **1.70** — so the rerank picks color
+over the collapse, locally, with no retrain.
+
+Every call is logged to `flywheel_log.jsonl` as `(prompt, candidates, scores, chosen)`. The debugger
+labels each one for free — no human annotation — so usage *is* training data. `tools/cli/retrain_local.py`
+reads the log, keeps only the good examples (compiles + runs + non-ring + above the rerank bar), mixes a
+corpus sample (anti-forgetting), and continues DoRA SFT **on the Mac (MPS)** → an improved adapter the
+flywheel then serves. The more it's used, the better it gets.
+
+```bash
+# pull the 3B working set (base + adapter) from Box, then run + retrain — all local, no GPU server:
+python3 tools/cli/flywheel.py "neon city street at night" -n 8 --open   # generate, rerank, render, log
+python3 tools/cli/retrain_local.py --min-score 1.4                       # retrain from accumulated logs
+```
+Model working-set (base `qwen2.5-coder-3b` + the `rl3b_refined` adapter) lives in Box; set `FLY_BASE`
+and `FLY_ADAPTER` to wherever you pulled it. The C++ debugger (`build/omni_reward`, `build/omni_render`)
+is the labeler and runs on Apple Silicon via MoltenVK.
+
 ## Build
 ```bash
 cmake -S . -B build -G Ninja && cmake --build build && (cd build && ctest)
