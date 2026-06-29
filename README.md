@@ -1,5 +1,7 @@
 # DERS — Debugger Execution-Reward for Synthesis
 
+![DERS — debugger-verified shaders](figures/gallery.png)
+
 A from-scratch, API/OS-agnostic GPU **shader debugger** (OmniTrace) in hyper-optimized C++, repurposed
 as a **decomposed execution-level reward** for shader synthesis — plus the from-scratch C++ LLM
 training/inference stack used to train the generators.
@@ -35,7 +37,6 @@ The C++ LLM trainer in `training/` builds separately (see `training/README.md`).
 Authors: **Satrajit Ghosh**, **Dov Kruger**.
 
 ## Figures
-![Gallery — debugger-verified shaders](figures/gallery_poster.png)
 *Debugger-verified shaders (best-of-6, every one compiles + renders), from the deliverable model.*
 
 The thesis figure (a compiler is blind to broken shaders) — all three compile, only the debugger
