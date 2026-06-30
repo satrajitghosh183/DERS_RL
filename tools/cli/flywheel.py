@@ -60,12 +60,19 @@ def render_feats(code):
     finally:
         os.unlink(g.name)
 
-def rerank_score(compiled, runs, feats, clip=0.0):
+# radial is a PROMPT-ADHERENCE signal, not a blanket penalty: if the prompt asks for radial/circular
+# structure, a ring is CORRECT (reward it); only penalize radial symmetry when the prompt didn't ask.
+RADIAL_WORDS = ("radial", "circular", "concentric", "ring", "kaleidoscope", "mandala", "sunburst", "spiral",
+                "ripple", "vortex", "tunnel", "rays", "sunbeam", "halo", "orbit", "bullseye", "target",
+                "swirl", "whirl", "portal")
+def radial_intent(prompt): p = prompt.lower(); return any(w in p for w in RADIAL_WORDS)
+def rerank_score(compiled, runs, feats, clip=0.0, prompt=""):
     if not (compiled and runs and feats): return -1.0
     s = feats["structure"]
+    rad = (0.15 if radial_intent(prompt) else -0.30) * feats["radial"]   # reward if asked, penalize if not
     return (0.45 * min(feats["chroma"]*3.0, 1.0)        # reward COLOR
             + 0.25 * min(s*60.0, 1.0)                    # some structure, but CAPPED (no variance-hacking)
-            - 0.30 * feats["radial"]                     # PENALIZE the ring collapse
+            + rad                                        # ring collapse vs prompt-wanted radial
             + 0.50 * clip                                # optional semantic match
             + 1.0)                                        # base for compiling+running
 
@@ -109,7 +116,7 @@ def main():
                 te = o.text_embeds/o.text_embeds.norm(dim=-1, keepdim=True)
                 clip = max(0.0, min(1.0, ((ie*te).sum(-1).item()-0.15)/0.15))
         if feats and "ppm" in feats: os.unlink(feats["ppm"]) if os.path.exists(feats["ppm"]) else None
-        sc = rerank_score(comp, runs, feats, clip)
+        sc = rerank_score(comp, runs, feats, clip, a.prompt)
         cands.append({"glsl": code, "compiled": comp, "runs": runs, "reward": round(rew, 2),
                       "chroma": feats["chroma"] if feats else 0, "radial": feats["radial"] if feats else 1,
                       "structure": feats["structure"] if feats else 0, "clip": round(clip, 3), "score": round(sc, 3)})
