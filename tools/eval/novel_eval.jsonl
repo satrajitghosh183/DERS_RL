@@ -1,0 +1,36 @@
+{"prompt": "Render a 3D surface plot of the height grid [[0,1,2],[1,3,1],[2,1,0]], viewed at an angle, colored by height (low blue, high red), lit from the upper-left.", "category": "dataviz3d"}
+{"prompt": "Draw a 3D contour/heightmap surface of height(x,y)=exp(-((x-0.5)^2+(y-0.5)^2)*8.0) seen in perspective, with thin contour lines at 6 levels overlaid.", "category": "dataviz3d"}
+{"prompt": "Given the 4x4 grid of heights [[1,2,2,1],[2,4,3,2],[2,3,4,2],[1,2,2,1]], bilinearly interpolate it and render a smooth 3D surface lit from above.", "category": "dataviz3d"}
+{"prompt": "Draw a 2D heatmap of the 5x5 grid where cell (i,j)=sin(i*1.2)*cos(j*1.2), using a blue->white->red diverging colormap with a thin border per cell.", "category": "heatmap"}
+{"prompt": "Render a heatmap of f(x,y)=fract(sin(dot(floor(vec2(x,y)*8.0), vec2(12.9898,78.233)))*43758.5453) as an 8x8 grid of colored cells.", "category": "heatmap"}
+{"prompt": "Draw a bar chart of the values [3,7,2,8,5,6,4], cyan bars on a dark background, evenly spaced, with a horizontal baseline axis.", "category": "chart"}
+{"prompt": "Plot the line graph of the sequence [0.1,0.4,0.35,0.8,0.65,0.9,0.5,0.7] across the width as a connected polyline in yellow, with the area under it faintly filled.", "category": "chart"}
+{"prompt": "Scatter-plot the points (0.2,0.3),(0.5,0.7),(0.8,0.4),(0.3,0.9),(0.65,0.2) as filled white circles on a grid background.", "category": "chart"}
+{"prompt": "Draw a pie chart with slices of fraction 0.4, 0.25, 0.2, 0.15 in four distinct colors, starting from the top and going clockwise.", "category": "chart"}
+{"prompt": "Draw the contour lines (isolines) of the scalar field f(x,y)=sin(5.0*x)*cos(5.0*y) at 8 evenly spaced levels, white lines on a dark field-colored background.", "category": "contour"}
+{"prompt": "Render a topographic map of elevation = length(uv-0.5): hypsometric tint (green low, yellow/brown mid, white peak) with thin brown contour lines every 0.08.", "category": "contour"}
+{"prompt": "Draw filled contour bands (8 discrete color steps) of f(x,y)=sin(8x)+cos(8y), like a weather pressure map.", "category": "contour"}
+{"prompt": "Visualize the 2D vector field F(x,y)=(-y+0.5, x-0.5) as a regular grid of small arrows whose length and direction follow the field.", "category": "scientific"}
+{"prompt": "Domain-color the complex function f(z)=z*z-1: hue from the argument of f, brightness from its magnitude, over the square [-2,2]x[-2,2].", "category": "scientific"}
+{"prompt": "Draw streamlines of the flow field (sin(3.0*y), cos(3.0*x)) as flowing curved lines.", "category": "scientific"}
+{"prompt": "Plot the function y=0.5+0.4*sin(10.0/(x+0.1)) across the screen as a 2px white curve on black, with faint axes.", "category": "scientific"}
+{"prompt": "Compute and draw a Voronoi diagram for the seed points (0.2,0.2),(0.8,0.3),(0.5,0.8),(0.15,0.85),(0.7,0.6); fill each cell a distinct flat color and draw the cell borders in black.", "category": "algorithmic"}
+{"prompt": "Bilinearly interpolate the four corner colors red (bottom-left), green (bottom-right), blue (top-left), yellow (top-right) across the screen.", "category": "algorithmic"}
+{"prompt": "Render a 4x4 Bayer ordered-dithering of a left-to-right brightness gradient, producing a black-and-white dithered ramp.", "category": "algorithmic"}
+{"prompt": "Draw an isometric grid of 6 cubes with heights from the array [1,3,2,4,2,1], each cube shaded with 3 face brightnesses for a 2.5D look.", "category": "algorithmic"}
+{"prompt": "Draw an analog clock face: 12 hour ticks around a circle, plus hour, minute, and second hands rotating from iTime (treat iTime seconds as the time).", "category": "ui"}
+{"prompt": "Render a circular progress gauge filled to 73 percent: a thick arc that starts at the top and sweeps clockwise, with the remaining arc dim.", "category": "ui"}
+{"prompt": "Draw graph paper: minor grid lines every 0.05 and major grid lines every 0.2, with the x and y axes (through the center) highlighted in a brighter color.", "category": "ui"}
+{"prompt": "Render a horizontal colormap legend bar going from blue (cold) on the left to red (hot) on the right, with 5 tick marks and a black border.", "category": "ui"}
+{"prompt": "Ray-march and render a single cube rotating with iTime, with simple diffuse lighting from one direction on a dark background.", "category": "geometry3d"}
+{"prompt": "Draw a rotating 3D wireframe cube (12 edges) projected to 2D, white lines on black, spinning with iTime.", "category": "geometry3d"}
+{"prompt": "Render a sphere with latitude/longitude grid lines (a wireframe globe) rotating with iTime.", "category": "geometry3d"}
+{"prompt": "Draw a histogram of 8 bins with counts [2,5,9,14,11,7,3,1] as vertical bars, tallest normalized to full height, in a warm gradient.", "category": "chart"}
+{"prompt": "Render marching-squares contour segments at level 0.5 of the field f(x,y)=0.5+0.5*sin(6x)*sin(6y), drawing only the iso-line.", "category": "contour"}
+{"prompt": "Draw a simple node-link graph: 5 nodes at fixed positions connected by edges (1-2,2-3,3-4,4-5,5-1,1-3), nodes as circles, edges as lines.", "category": "algorithmic"}
+{"prompt": "Visualize a 1D array [0.2,0.9,0.5,0.7,0.3,0.8] as a horizontal stacked heat-strip, each segment colored by value on a viridis-like ramp.", "category": "heatmap"}
+{"prompt": "Render a polar plot of r=0.5+0.3*cos(5.0*theta) (a 5-petal rose curve) as a bright line on a polar grid.", "category": "scientific"}
+{"prompt": "Draw a candlestick chart for 5 days with open/high/low/close = (0.3,0.6,0.2,0.5),(0.5,0.7,0.4,0.45),(0.45,0.5,0.3,0.35),(0.35,0.8,0.3,0.75),(0.75,0.9,0.6,0.85): green up days, red down days, wicks for high/low.", "category": "chart"}
+{"prompt": "Render a 3D bar chart (city of blocks) from the 3x3 grid [[1,2,3],[2,4,1],[3,1,2]] in isometric projection, each bar height from its value.", "category": "dataviz3d"}
+{"prompt": "Draw a confusion-matrix-style 3x3 grid with cell values [[0.9,0.05,0.05],[0.1,0.8,0.1],[0.0,0.2,0.8]], each cell shaded by value (dark=high) with the implied number drawn as brightness.", "category": "heatmap"}
+{"prompt": "Visualize the gradient (slope direction) of the terrain h(x,y)=sin(4x)+sin(4y) as a hue-encoded direction field (hue = gradient angle).", "category": "scientific"}
