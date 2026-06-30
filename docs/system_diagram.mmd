@@ -1,0 +1,63 @@
+flowchart TB
+    subgraph DATA["📦 Data (in Box, not git)"]
+        CORP["Shader corpus<br/>~33k unique / 70M tok<br/>(Shadertoy + dedup)"]
+        PROMPTS["NL prompts<br/>make_prompts +<br/>procedural generator"]
+    end
+
+    subgraph GEN["🧠 Generators (LLMs)"]
+        SLM["from-scratch C++ SLM<br/>(llm-cpp / OLMo-corecpp)<br/>❌ dead end: word-salad"]
+        D7["DoRA-7B deliver@400<br/>✅ headline model"]
+        D3["DoRA-3B rl3b_refined<br/>✅ local on Mac (MPS)"]
+        T32["32B-Coder-Instruct<br/>🔭 teacher (H100 job)"]
+    end
+
+    subgraph OMNI["🔬 OmniTrace debugger (from-scratch C++23) — THE CONTRIBUTION"]
+        FE["SPIR-V → UIR lifter"]
+        CFG["CFG · dominators ·<br/>divergence analysis"]
+        CAP["TraceTap capture +<br/>divergence-aware codec (26×)"]
+        CPU["bit-exact CPU<br/>SIMT interpreter"]
+        GPU["Vulkan GPU capture<br/>+ render → PPM"]
+        TT["time-travel<br/>reconstruction"]
+        FE --> CFG --> CAP --> CPU
+        FE --> GPU
+        CAP --> TT
+    end
+
+    subgraph REWARD["🎯 Decomposed execution reward (omni_reward)"]
+        R["compile · runs-finite · renders<br/>+ color (chroma) + structure<br/>broken 0.0 &lt; NaN 2.5 &lt; flat 3.5 &lt; rich 5.4+<br/>--reward-mode {debugger | compile}"]
+    end
+
+    subgraph TRAIN["🏋️ Training loops"]
+        SFT["DoRA SFT"]
+        RL["GRPO RL<br/>(debugger-in-the-loop)"]
+        RERANK["flywheel rerank<br/>color − radial + clip<br/>(beats ring collapse)"]
+        DISTILL["distillation retrain<br/>32B verified-best → 3B"]
+    end
+
+    subgraph OUT["🚢 Outputs (Box + GitHub)"]
+        DS["verified shader datasets<br/>800 + galleries"]
+        MODELS["adapters / GGUF / MLX<br/>+ distilled 3B"]
+        PAPER["zero-leak ablation:<br/>0.0 → 0.90 → 1.0 compile@1<br/>debugger &gt; compile-only RLVR"]
+    end
+
+    CORP --> SFT
+    PROMPTS --> GEN
+    GEN -->|candidate GLSL| OMNI
+    OMNI --> REWARD
+    REWARD -->|reward signal| RL
+    SFT --> D7 & D3
+    RL --> D7 & D3
+    REWARD --> RERANK
+    RERANK -->|good examples| DISTILL
+    T32 -->|teacher shaders| OMNI
+    REWARD -->|verified winners| DISTILL
+    DISTILL --> MODELS
+    REWARD --> DS
+    RL --> PAPER
+
+    classDef dead fill:#5a1e1e,stroke:#c0392b,color:#fff
+    classDef good fill:#1e3a2a,stroke:#27ae60,color:#fff
+    classDef core fill:#1e2a4a,stroke:#3498db,color:#fff
+    class SLM dead
+    class D7,D3,DS,MODELS,PAPER good
+    class FE,CFG,CAP,CPU,GPU,TT,R core
