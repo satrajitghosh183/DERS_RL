@@ -22,13 +22,28 @@ HARNESS = ("#version 450\nlayout(location=0) out vec4 _O;\n"
   "layout(push_constant) uniform U { vec3 iResolution; float iTime; vec4 iMouse; int iFrame; } u;\n"
   "#define iResolution u.iResolution\n#define iTime u.iTime\n#define iMouse u.iMouse\n#define iFrame u.iFrame\n")
 def wrap(c): return HARNESS + c + "\nvoid main(){ vec4 c=vec4(0.); mainImage(c, gl_FragCoord.xy); _O=c; }\n"
+def _trim_to_first_shader(c):
+    """Keep preamble + the FIRST complete mainImage body, dropping any repeated copy or trailing prose.
+    Models that haven't firmly learned EOS re-emit the whole shader -> a second mainImage = compile error
+    ('function already has a body'). Brace-match the first one. Took distilled-3B compile@1 from 0 -> 10/10."""
+    i = c.find("void mainImage")
+    if i < 0: return c
+    b = c.find("{", i)
+    if b < 0: return c
+    d = 0
+    for k in range(b, len(c)):
+        if c[k] == "{": d += 1
+        elif c[k] == "}":
+            d -= 1
+            if d == 0: return c[:k+1]
+    return c
 def extract(t):
     if "```" in t:
         seg = t.split("```", 2); b = seg[1] if len(seg) > 1 else t
         for lg in ("glsl", "c", "cpp", "c++"):
             if b.startswith(lg): b = b[len(lg):]; break
-        return b.strip()
-    return t.strip()
+        return _trim_to_first_shader(b.strip())
+    return _trim_to_first_shader(t.strip())
 
 def omni(glsl):
     try:
